@@ -3,16 +3,17 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
+import './create_event.dart';
+import './screens/dashboard.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  
+
   runApp(const MyApp());
 }
-
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -40,23 +41,58 @@ class _AuthScreenState extends State<AuthScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  
   String _errorMessage = '';
+  String userRole = '';  // ✅ Declare userRole
+  bool _showCreateEventButton = false;  // ✅ Declare _showCreateEventButton
 
-  Future<void> _signIn() async {
-    try {
-      await _auth.signInWithEmailAndPassword(
-        email: _emailController.text,
-        password: _passwordController.text,
-      );
+Future<void> _signIn() async {
+  try {
+    UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: _emailController.text,
+      password: _passwordController.text,
+    );
+
+    QuerySnapshot userQuery = await FirebaseFirestore.instance
+        .collection("users")
+        .doc("User_Roles")
+        .collection("Users")
+        .where("email", isEqualTo: _emailController.text)
+        .get();
+
+    if (userQuery.docs.isNotEmpty) {
+      var userDoc = userQuery.docs.first;
+      String userRole = userDoc["role"];
+
+      // Navigate to the correct dashboard based on role
+      if (userRole == "Admin") {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const AdminDashboard()),
+        );
+      } else if (userRole == "Event_Manager") {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const EventManagerDashboard()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const ClientDashboard()),
+        );
+      }
+    } else {
       setState(() {
-        _errorMessage = 'Login Successful!';
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Error: ${e.toString()}';
+        _errorMessage = "No role found for this user.";
       });
     }
+  } catch (e) {
+    setState(() {
+      _errorMessage = "Error: ${e.toString()}";
+    });
   }
+}
+
 
   Future<void> _signUp() async {
     try {
@@ -95,7 +131,21 @@ class _AuthScreenState extends State<AuthScreen> {
             const SizedBox(height: 20),
             ElevatedButton(onPressed: _signIn, child: const Text('Login')),
             ElevatedButton(onPressed: _signUp, child: const Text('Sign Up')),
-            if (_errorMessage.isNotEmpty) Text(_errorMessage, style: const TextStyle(color: Colors.red)),
+            
+            if (_errorMessage.isNotEmpty) 
+              Text(_errorMessage, style: const TextStyle(color: Colors.red)),
+
+            // ✅ Show "Create Event" button only if the user is Admin
+            if (_showCreateEventButton) 
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const CreateEventScreen()),
+                    );
+                },
+                child: const Text('Create Event'),
+              ),
           ],
         ),
       ),
