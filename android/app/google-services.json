@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "114506886437",
+    "project_id": "emsprivate-e92ec",
+    "storage_bucket": "emsprivate-e92ec.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:114506886437:android:1311af3580c08947f9fecc",
+        "android_client_info": {
+          "package_name": "com.example.project_alone_test"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "114506886437-go6if5l5pkcu5lfdf0r77nsathutqn5v.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAMSGfUhNK_3uBna_e_GKw1Q7TniknToAA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "114506886437-go6if5l5pkcu5lfdf0r77nsathutqn5v.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
