@@ -15,23 +15,36 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
   @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final ValueNotifier<bool> _isDarkMode = ValueNotifier(true); // ✅ Default to dark mode
+
+  @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Firebase Login',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const AuthScreen(), // Navigate to login page
+    return ValueListenableBuilder<bool>(
+      valueListenable: _isDarkMode,
+      builder: (context, isDark, child) {
+        return MaterialApp(
+          title: 'Flutter Firebase Login',
+          theme: ThemeData.light(),
+          darkTheme: ThemeData.dark(),
+          themeMode: isDark ? ThemeMode.dark : ThemeMode.light, // ✅ Toggle theme
+          home: AuthScreen(toggleTheme: () => _isDarkMode.value = !_isDarkMode.value),
+        );
+      },
     );
   }
 }
 
 class AuthScreen extends StatefulWidget {
-  const AuthScreen({super.key});
+  final VoidCallback toggleTheme;
+  const AuthScreen({super.key, required this.toggleTheme});
 
   @override
   State<AuthScreen> createState() => _AuthScreenState();
@@ -43,56 +56,58 @@ class _AuthScreenState extends State<AuthScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   
   String _errorMessage = '';
-  String userRole = '';  // ✅ Declare userRole
-  bool _showCreateEventButton = false;  // ✅ Declare _showCreateEventButton
+  String userRole = '';
+  bool _showCreateEventButton = false;
 
-Future<void> _signIn() async {
-  try {
-    UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-      email: _emailController.text,
-      password: _passwordController.text,
-    );
+  Future<void> _signIn() async {
+    try {
+      UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
 
-    QuerySnapshot userQuery = await FirebaseFirestore.instance
-        .collection("users")
-        .doc("User_Roles")
-        .collection("Users")
-        .where("email", isEqualTo: _emailController.text)
-        .get();
+      QuerySnapshot rolesQuery = await FirebaseFirestore.instance
+          .collection("users")
+          .doc("User_Roles")
+          .collection("Users")
+          .get();
 
-    if (userQuery.docs.isNotEmpty) {
-      var userDoc = userQuery.docs.first;
-      String userRole = userDoc["role"];
-
-      // Navigate to the correct dashboard based on role
-      if (userRole == "Admin") {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const AdminDashboard()),
-        );
-      } else if (userRole == "Event_Manager") {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const EventManagerDashboard()),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const ClientDashboard()),
-        );
+      String? userRole;
+      for (var doc in rolesQuery.docs) {
+        if (doc["email"] == _emailController.text) {
+          userRole = doc.id; 
+          break;
+        }
       }
-    } else {
+
+      if (userRole != null) {
+        if (userRole == "Admin") {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const AdminDashboard()),
+          );
+        } else if (userRole == "Event_Manager") {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const EventManagerDashboard()),
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const ClientDashboard()),
+          );
+        }
+      } else {
+        setState(() {
+          _errorMessage = "No role found for this user.";
+        });
+      }
+    } catch (e) {
       setState(() {
-        _errorMessage = "No role found for this user.";
+        _errorMessage = "Error: ${e.toString()}";
       });
     }
-  } catch (e) {
-    setState(() {
-      _errorMessage = "Error: ${e.toString()}";
-    });
   }
-}
-
 
   Future<void> _signUp() async {
     try {
@@ -113,7 +128,15 @@ Future<void> _signIn() async {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Login Page')),
+      appBar: AppBar(
+        title: const Text('Login Page'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.brightness_6), // ✅ Toggle button icon
+            onPressed: widget.toggleTheme,
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -127,6 +150,7 @@ Future<void> _signIn() async {
               controller: _passwordController,
               decoration: const InputDecoration(labelText: 'Password'),
               obscureText: true,
+              onSubmitted: (_) => _signIn(),
             ),
             const SizedBox(height: 20),
             ElevatedButton(onPressed: _signIn, child: const Text('Login')),
@@ -135,14 +159,13 @@ Future<void> _signIn() async {
             if (_errorMessage.isNotEmpty) 
               Text(_errorMessage, style: const TextStyle(color: Colors.red)),
 
-            // ✅ Show "Create Event" button only if the user is Admin
             if (_showCreateEventButton) 
               ElevatedButton(
                 onPressed: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const CreateEventScreen()),
-                    );
+                  );
                 },
                 child: const Text('Create Event'),
               ),

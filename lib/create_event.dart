@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class CreateEventScreen extends StatefulWidget {
   const CreateEventScreen({super.key});
@@ -21,20 +22,25 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   Future<void> _createEvent() async {
     final firestore = FirebaseFirestore.instance;
     final eventRef = firestore.collection("events").doc();
+    final user = FirebaseAuth.instance.currentUser; // Get logged-in user
 
     await eventRef.set({
       "Event_ID": eventRef.id,
       "Title": _titleController.text,
       "Description": _descriptionController.text,
-      "Start_D/T": _startDate,
-      "End_D/T": _endDate,
+      "Start_D/T": _startDate != null ? Timestamp.fromDate(_startDate!) : null,
+      "End_D/T": _endDate != null ? Timestamp.fromDate(_endDate!) : null,
       "Max_capacity": int.tryParse(_maxCapacityController.text) ?? 0,
       "Status": _statusController.text,
-      "Budget": double.tryParse(_budgetController.text) ?? 0.0,
-      "Age_Rating": int.tryParse(_ageRatingController.text) ?? 0,
+      "Budget": _budgetController.text,
+      "Age_Rating": _ageRatingController.text,
+      "createdBy": user?.email ?? "Unknown", // Store creator email
+      "createdAt": Timestamp.now(), // Store event creation timestamp
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Event Created Successfully")));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Event Created Successfully")),
+    );
     Navigator.pop(context);
   }
 

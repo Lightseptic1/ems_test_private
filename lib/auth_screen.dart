@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import './create_event.dart';
+import 'screens/admin_dashboard.dart';
+import 'screens/event_manager_dashboard.dart';
+import 'screens/client_dashboard.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -18,28 +21,64 @@ class _AuthScreenState extends State<AuthScreen> {
   String _errorMessage = '';
   String? userRole;
 
-  Future<void> _signIn() async {
-    try {
-      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-        email: _emailController.text,
-        password: _passwordController.text,
-      );
+Future<void> _signIn() async {
+  try {
+    UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: _emailController.text,
+      password: _passwordController.text,
+    );
 
-      // Get user role from Firestore
-      DocumentSnapshot userDoc = await _firestore.collection("users").doc(_emailController.text).get();
-      setState(() {
-        userRole = userDoc["role"];
-      });
+    // Get all role documents under "Users"
+    QuerySnapshot rolesQuery = await FirebaseFirestore.instance
+        .collection("users")
+        .doc("User_Roles")
+        .collection("Users")
+        .get();
 
+    String? userRole;
+
+    for (var doc in rolesQuery.docs) {
+      if (doc["email"] == _emailController.text) {
+        userRole = doc.id;  // The document ID is the role (e.g., "Admin", "Client")
+        break;
+      }
+      print("Checking role: ${doc.id}, Email: ${doc["email"]}");
+
+    }
+
+    if (userRole != null) {
+      print("User Role: $userRole");  // Debugging print
+
+      // Navigate to the correct dashboard based on role
+      if (userRole == "Admin") {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const AdminDashboard()),
+        );
+      } else if (userRole == "Event_Manager") {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const EventManagerDashboard()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const ClientDashboard()),
+        );
+      }
+    } else {
       setState(() {
-        _errorMessage = 'Login Successful!';
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Error: ${e.toString()}';
+        _errorMessage = "No role found for this user.";
       });
     }
+  } catch (e) {
+    print("Error fetching user role: $e");
+    setState(() {
+      _errorMessage = "Error: ${e.toString()}";
+    });
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
